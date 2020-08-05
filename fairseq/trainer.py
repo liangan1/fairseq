@@ -41,7 +41,6 @@ class Trainer(object):
 
         # catalog shared parameters
         shared_params = _catalog_shared_params(model)
-
         self.tpu = getattr(args, 'tpu', False)
         self.cuda = torch.cuda.is_available() and not args.cpu and not self.tpu
         if self.cuda:
@@ -50,7 +49,8 @@ class Trainer(object):
             self.device = utils.get_tpu_device(args)
         else:
             self.device = torch.device('cpu')
-
+        if args.ipex:
+            self.device = torch.device('dpcpp:0')
         # copy model and criterion to current device/dtype
         self._criterion = criterion
         self._model = model
@@ -729,7 +729,10 @@ class Trainer(object):
 
         if self.cuda:
             sample = utils.move_to_cuda(sample)
-
+        
+        if self.args.ipex: 
+            sample = utils.move_to_ipex(sample)
+        
         def apply_half(t):
             if t.dtype is torch.float32:
                 return t.half()

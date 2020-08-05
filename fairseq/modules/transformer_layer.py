@@ -110,7 +110,9 @@ class TransformerEncoderLayer(nn.Module):
         # will become -inf, which results in NaN in model parameters
         if attn_mask is not None:
             attn_mask = attn_mask.masked_fill(attn_mask.to(torch.bool), -1e8)
-
+        
+        #import pdb
+        #pdb.set_trace()
         residual = x
         if self.normalize_before:
             x = self.self_attn_layer_norm(x)
@@ -271,7 +273,7 @@ class TransformerDecoderLayer(nn.Module):
         """
         if need_head_weights:
             need_attn = True
-
+    
         residual = x
         if self.normalize_before:
             x = self.self_attn_layer_norm(x)

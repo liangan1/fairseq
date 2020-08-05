@@ -89,6 +89,16 @@ def main(args):
     if args.seed is not None and not args.no_seed_provided:
         np.random.seed(args.seed)
         utils.set_torch_seed(args.seed)
+    
+    if args.ipex:
+        import intel_pytorch_extension as ipex
+        if args.dnnl:
+            ipex.core.enable_auto_dnnl()
+        else:
+            ipex.core.disable_auto_dnnl()
+        if args.mix_precision:
+            ipex.core.enable_mix_bf16_fp32()
+
 
     use_cuda = torch.cuda.is_available() and not args.cpu
 
@@ -115,6 +125,8 @@ def main(args):
             model.half()
         if use_cuda:
             model.cuda()
+        if args.ipex:
+            model = model.to(device = 'dpcpp:0')
 
     # Initialize generator
     generator = task.build_generator(models, args)
@@ -159,7 +171,9 @@ def main(args):
             if use_cuda:
                 src_tokens = src_tokens.cuda()
                 src_lengths = src_lengths.cuda()
-
+            if args.ipex:
+                src_tokens = src_tokens.to(device = 'dpcpp:0')
+                src_lengths = src_lengths.to(device = 'dpcpp:0')
             sample = {
                 'net_input': {
                     'src_tokens': src_tokens,

@@ -76,6 +76,13 @@ def move_to_cuda(sample):
 
     return apply_to_sample(_move_to_cuda, sample)
 
+def move_to_ipex(sample):
+ 
+    def _move_to_ipex(tensor):
+        return tensor.to(device = 'dpcpp:0')
+ 
+    return apply_to_sample(_move_to_ipex, sample)
+
 
 def move_to_cpu(sample):
     def _move_to_cpu(tensor):

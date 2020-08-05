@@ -66,6 +66,15 @@ def main(parsed_args, **unused_kwargs):
 
     logger.info(parsed_args)
 
+    if parsed_args.ipex:
+        import intel_pytorch_extension as ipex
+        if args.dnnl:
+            ipex.core.enable_auto_dnnl()
+        else:
+            ipex.core.disable_auto_dnnl()
+        if args.mix_precision:
+            ipex.core.enable_mix_bf16_fp32()
+ 
     use_cuda = torch.cuda.is_available() and not parsed_args.cpu
 
     task = tasks.setup_task(parsed_args)
@@ -109,6 +118,8 @@ def main(parsed_args, **unused_kwargs):
             model.half()
         if use_cuda:
             model.cuda()
+        if args.ipex:
+            model = model.to(device = 'dpcpp:0')
 
     assert len(models) > 0
 
@@ -163,6 +174,7 @@ def main(parsed_args, **unused_kwargs):
             continue
 
         sample = utils.move_to_cuda(sample) if use_cuda else sample
+        sample = utils.move_to_ipex(sample) if args.ipex else sample        
 
         gen_timer.start()
         hypos = scorer.generate(models, sample)

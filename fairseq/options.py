@@ -258,6 +258,16 @@ def get_parser(desc, default_task="translation"):
     parser.add_argument('--quantization-config-path', default=None,
                         help='path to quantization config file')
     parser.add_argument('--profile', action='store_true', help='enable autograd profiler emit_nvtx')
+    parser.add_argument('--ipex', action='store_true', default=False,
+                        help='enable Intel_PyTorch_Extension')
+    parser.add_argument('--dnnl', action='store_true', default=False,
+                        help='enable Intel_PyTorch_Extension auto dnnl path')
+    parser.add_argument('--mix-precision', action='store_true', default=False,
+                        help='enable ipex mix precision')
+    parser.add_argument('--performance-begin-its', type=int, default=50, help="iteration begin to statistic performance")
+    parser.add_argument('--performance-its-count', type=int, default=50, help="iterations used to statistic performance")
+    parser.add_argument('--validate-training-performance', action='store_true', default=False,
+                         help='enable performance validation for training')
 
     from fairseq.registry import REGISTRIES
     for registry_name, REGISTRY in REGISTRIES.items():

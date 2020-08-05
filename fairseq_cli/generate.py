@@ -58,6 +58,15 @@ def _main(args, output_file):
         np.random.seed(args.seed)
         utils.set_torch_seed(args.seed)
 
+    if args.ipex:
+        import intel_pytorch_extension as ipex
+        if args.dnnl:
+            ipex.core.enable_auto_dnnl()
+        else:
+            ipex.core.disable_auto_dnnl()
+        if args.mix_precision:
+            ipex.core.enable_mix_bf16_fp32()
+
     use_cuda = torch.cuda.is_available() and not args.cpu
 
     # Load dataset splits
@@ -87,6 +96,9 @@ def _main(args, output_file):
             model.half()
         if use_cuda:
             model.cuda()
+        if args.ipex:
+            model = model.to(device = 'dpcpp:0')
+            print(model)
 
     # Load alignment dictionary for unknown word replacement
     # (None if no unknown word replacement, empty if no path to align dictionary)
@@ -139,6 +151,7 @@ def _main(args, output_file):
     wps_meter = TimeMeter()
     for sample in progress:
         sample = utils.move_to_cuda(sample) if use_cuda else sample
+        sample = utils.move_to_ipex(sample) if args.ipex else sample
         if 'net_input' not in sample:
             continue
 

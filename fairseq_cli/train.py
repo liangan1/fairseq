@@ -14,6 +14,7 @@ import os
 import random
 import sys
 from typing import Callable, Optional
+import time
 
 import numpy as np
 import torch
@@ -53,10 +54,20 @@ def main(
         args.max_tokens is not None or args.max_sentences is not None
     ), "Must specify batch size either with --max-tokens or --max-sentences"
     metrics.reset()
-
+     
     # Initialize CUDA and distributed training
     if torch.cuda.is_available() and not args.cpu and not getattr(args, "tpu", False):
         torch.cuda.set_device(args.device_id)
+     
+    if args.ipex:
+        import intel_pytorch_extension as ipex
+        if args.dnnl:
+            ipex.core.enable_auto_dnnl()
+        else:
+            ipex.core.disable_auto_dnnl()
+        if args.mix_precision:
+            ipex.core.enable_mix_bf16_fp32()
+
     np.random.seed(args.seed)
     utils.set_torch_seed(args.seed)
     if init_distributed:
@@ -224,11 +235,18 @@ def train(args, trainer, task, epoch_itr):
     valid_subsets = args.valid_subset.split(",")
     should_stop = False
     for i, samples in enumerate(progress):
+
+        ##### statistic program
+        if args.validate_training_performance:
+            performance_end_its = args.performance_begin_its  + args.performance_its_count    
+        if args.validate_training_performance  and i == args.performance_begin_its:
+            processed_tokens = 0
+            time_begin = time.time()
+
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function("train_step-%d" % i):
             log_output = trainer.train_step(samples)
             if log_output is None:  # OOM, overflow, ...
                 continue
-
         # log mid-epoch stats
         num_updates = trainer.get_num_updates()
         if num_updates % args.log_interval == 0:
@@ -243,9 +261,22 @@ def train(args, trainer, task, epoch_itr):
         valid_losses, should_stop = validate_and_save(
             args, trainer, task, epoch_itr, valid_subsets, end_of_epoch
         )
+        if args.validate_training_performance and i >= args.performance_begin_its:
+            for sample in samples:
+                net_input = sample['net_input']
+                bs, src_lens = net_input['src_tokens'].shape 
+                processed_tokens += bs * src_lens
+        if args.validate_training_performance and i == performance_end_its:
+            time_end = time.time()
+            logger.info("Performance info:")
+            logger.info("Begin iteration:{}".format(args.performance_begin_its))
+            logger.info("End iteration: {}".format(performance_end_its))
+            logger.info("Processed_tokens: {}".format(processed_tokens))
+            logger.info("Time cost: {} s".format(time_end - time_begin))
+            logger.info("Throughput：{} tokens/s".format(processed_tokens/(time_end - time_begin)))
+            should_stop = True                        
         if should_stop:
             break
-
     # log end-of-epoch stats
     logger.info("end of epoch {} (average epoch stats below)".format(epoch_itr.epoch))
     stats = get_training_stats(metrics.get_smoothed_values("train"))
@@ -324,6 +355,7 @@ def validate(args, trainer, task, epoch_itr, subsets):
         # don't pollute other aggregators (e.g., train meters)
         with metrics.aggregate(new_root=True) as agg:
             for sample in progress:
+                sample = utils.move_to_ipex(sample) if args.ipex else sample
                 trainer.valid_step(sample)
 
         # log validation stats
@@ -364,6 +396,7 @@ def distributed_main(
 def cli_main(modify_parser=None):
     parser = options.get_training_parser()
     args = options.parse_args_and_arch(parser, modify_parser=modify_parser)
+    print("####args", args)
     if args.profile:
         with torch.cuda.profiler.profile():
             with torch.autograd.profiler.emit_nvtx():
