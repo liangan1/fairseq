@@ -234,17 +234,21 @@ def train(args, trainer, task, epoch_itr):
 
     valid_subsets = args.valid_subset.split(",")
     should_stop = False
+    time_cost =0
     for i, samples in enumerate(progress):
 
         ##### statistic program
         if args.validate_training_performance:
-            performance_end_its = args.performance_begin_its  + args.performance_its_count    
+            performance_end_its = args.performance_begin_its  + args.performance_its_count - 1   
         if args.validate_training_performance  and i == args.performance_begin_its:
             processed_tokens = 0
-            time_begin = time.time()
 
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function("train_step-%d" % i):
+            time_begin = time.time()
             log_output = trainer.train_step(samples)
+            time_end = time.time()
+            if args.validate_training_performance and i >= args.performance_begin_its and i <= performance_end_its:
+                time_cost = time_cost + (time_end - time_begin)
             if log_output is None:  # OOM, overflow, ...
                 continue
         # log mid-epoch stats
@@ -267,13 +271,12 @@ def train(args, trainer, task, epoch_itr):
                 bs, src_lens = net_input['src_tokens'].shape 
                 processed_tokens += bs * src_lens
         if args.validate_training_performance and i == performance_end_its:
-            time_end = time.time()
             logger.info("Performance info:")
             logger.info("Begin iteration:{}".format(args.performance_begin_its))
             logger.info("End iteration: {}".format(performance_end_its))
             logger.info("Processed_tokens: {}".format(processed_tokens))
-            logger.info("Time cost: {} s".format(time_end - time_begin))
-            logger.info("Throughput：{} tokens/s".format(processed_tokens/(time_end - time_begin)))
+            logger.info("Time cost: {} s".format(time_cost))
+            logger.info("Throughput：{} tokens/s".format(processed_tokens/(time_cost)))
             should_stop = True                        
         if should_stop:
             break
