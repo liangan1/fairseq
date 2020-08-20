@@ -42,7 +42,7 @@ fi
 
 
 DATASET=/lustre/dataset/wmt17_en_de/
-MAX_TOKEN=4096
+MAX_TOKEN=5120
 
 if [ -e $DATASET ]; then
   echo "### $DATASET found..."
