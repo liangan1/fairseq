@@ -34,7 +34,7 @@ data_type=$3
 
 echo "$data_type"
 
-if [[ "$2" == "bf16" ]]
+if [[ "$3" == "bf16" ]]
 then
     ARGS="$ARGS --mix-precision"
     echo "### running bf16 datatype"

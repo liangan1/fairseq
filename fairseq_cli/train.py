@@ -66,7 +66,7 @@ def main(
         else:
             ipex.core.disable_auto_dnnl()
         if args.mix_precision:
-            ipex.core.enable_mix_bf16_fp32()
+            ipex.enable_auto_optimization(mixed_dtype=torch.bfloat16, train=True)
 
     np.random.seed(args.seed)
     utils.set_torch_seed(args.seed)
