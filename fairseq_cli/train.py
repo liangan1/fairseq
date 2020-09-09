@@ -205,7 +205,6 @@ def tpu_data_loader(args, itr):
 def train(args, trainer, task, epoch_itr):
     """Train the model for one epoch and return validation losses."""
     logger.info("begin training epoch {}".format(epoch_itr.epoch))
-
     # Initialize data iterator
     itr = epoch_itr.next_epoch_itr(
         fix_batches_to_gpus=args.fix_batches_to_gpus,
@@ -411,7 +410,8 @@ def cli_main(modify_parser=None):
 def cli_main_helper(args):
     if args.distributed_init_method is None:
         distributed_utils.infer_init_method(args)
-
+    if args.distributed_backend == "ccl":
+       main(args, init_distributed=True)
     if args.distributed_init_method is not None:
         # distributed training
         if torch.cuda.device_count() > 1 and not args.distributed_no_spawn:

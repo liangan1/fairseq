@@ -30,15 +30,24 @@ def is_master(args):
 def infer_init_method(args):
     if args.distributed_init_method is not None or getattr(args, 'tpu', False):
         return
+    # for ccl distributed backend
+    if args.distributed_backend == "ccl":
+        import torch_ccl
+        os.environ['RANK'] = os.environ.get('PMI_RANK', -1)
+        os.environ['WORLD_SIZE'] = os.environ.get('PMI_SIZE', -1) 
+        args.distributed_init_method = None
+        args.distributed_world_size = int(os.environ['WORLD_SIZE'])
+        args.distributed_rank = int(os.environ['RANK'])
+        args.device_id = None
 
     # support torch.distributed.launch
-    if all(key in os.environ for key in [
+    elif all(key in os.environ for key in [
         'MASTER_ADDR', 'MASTER_PORT', 'WORLD_SIZE', 'RANK'
     ]):
         args.distributed_init_method = 'env://'
         args.distributed_world_size = int(os.environ['WORLD_SIZE'])
         args.distributed_rank = int(os.environ['RANK'])
-
+    
     # we can determine the init method automatically for Slurm
     elif args.distributed_port > 0:
         node_list = os.environ.get('SLURM_STEP_NODELIST')
