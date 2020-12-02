@@ -97,7 +97,7 @@ def _main(args, output_file):
         if use_cuda:
             model.cuda()
         if args.ipex:
-            model = model.to(device = 'dpcpp:0')
+            model = model.to(device = ipex.DEVICE)
             print(model)
 
     # Load alignment dictionary for unknown word replacement

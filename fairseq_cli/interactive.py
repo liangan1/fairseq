@@ -126,7 +126,7 @@ def main(args):
         if use_cuda:
             model.cuda()
         if args.ipex:
-            model = model.to(device = 'dpcpp:0')
+            model = model.to(device = ipex.DEVICE)
 
     # Initialize generator
     generator = task.build_generator(models, args)
@@ -172,8 +172,8 @@ def main(args):
                 src_tokens = src_tokens.cuda()
                 src_lengths = src_lengths.cuda()
             if args.ipex:
-                src_tokens = src_tokens.to(device = 'dpcpp:0')
-                src_lengths = src_lengths.to(device = 'dpcpp:0')
+                src_tokens = src_tokens.to(device = ipex.DEVICE)
+                src_lengths = src_lengths.to(device = ipex.DEVICE)
             sample = {
                 'net_input': {
                     'src_tokens': src_tokens,

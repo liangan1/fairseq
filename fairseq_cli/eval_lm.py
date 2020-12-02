@@ -119,7 +119,7 @@ def main(parsed_args, **unused_kwargs):
         if use_cuda:
             model.cuda()
         if args.ipex:
-            model = model.to(device = 'dpcpp:0')
+            model = model.to(device = ipex.DEVICE)
 
     assert len(models) > 0
 

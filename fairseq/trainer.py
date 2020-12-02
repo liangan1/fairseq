@@ -50,7 +50,8 @@ class Trainer(object):
         else:
             self.device = torch.device('cpu')
         if args.ipex:
-            self.device = torch.device('dpcpp:0')
+            import intel_pytorch_extension as ipex
+            self.device = torch.device(ipex.DEVICE)
         # copy model and criterion to current device/dtype
         self._criterion = criterion
         self._model = model
