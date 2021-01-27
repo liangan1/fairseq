@@ -7,13 +7,30 @@ import math
 
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
+import torch 
+
+class LabelSmooth(torch.autograd.Function):
+      @staticmethod
+      def forward(ctx, lprobs, target):
+          ctx.save_for_backward(lprobs, target)
+          nll_loss = -lprobs.gather(dim=-1, index=target)
+          smooth_loss = -lprobs.sum(dim=-1, keepdim=True)
+          return nll_loss, smooth_loss
+      
+      @staticmethod
+      def backward(ctx, nll_loss_grad, smooth_loss_grad):
+         lprobs, target = ctx.saved_tensors
+         grad = smooth_loss_grad.expand(lprobs.size()).contiguous()
+         grad.scatter_add_(dim=-1, index=target,  src=grad)
+         return grad, None
 
 
 def label_smoothed_nll_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
     if target.dim() == lprobs.dim() - 1:
         target = target.unsqueeze(-1)
-    nll_loss = -lprobs.gather(dim=-1, index=target)
-    smooth_loss = -lprobs.sum(dim=-1, keepdim=True)
+    #nll_loss = -lprobs.gather(dim=-1, index=target)
+    #smooth_loss = -lprobs.sum(dim=-1, keepdim=True)
+    nll_loss, smooth_loss = LabelSmooth.apply(lprobs, target)
     if ignore_index is not None:
         pad_mask = target.eq(ignore_index)
         nll_loss.masked_fill_(pad_mask, 0.)
